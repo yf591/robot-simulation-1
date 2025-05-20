@@ -30,6 +30,49 @@
   - その他（シミュレーション、動画生成）: `.py`。
 - **環境**: ゼロコスト（無料ソフトのみ）。
 
+### 1.5 リポジトリ構成（案）
+```
+robot-simulation-1/
+├── .venv/                        # 仮想環境（.gitignoreで無視）
+├── ros_ws/                       # ROSワークスペース
+│   ├── src/
+│   │   ├── soft_gripper/         # ROSパッケージ
+│   │   │   ├── launch/           # 起動ファイル
+│   │   │   │   ├── simulation.launch      # Gazeboシミュレーション起動
+│   │   │   │   └── pybullet_bridge.launch # PyBullet-ROS連携
+│   │   │   ├── urdf/             # ロボットモデル
+│   │   │   │   ├── arm.urdf      # ロボットアーム
+│   │   │   │   └── gripper.urdf  # グリッパー
+│   │   │   ├── meshes/           # 3Dモデル
+│   │   │   │   └── gripper.obj   # ソフトグリッパーメッシュ
+│   │   │   ├── worlds/           # Gazebo環境
+│   │   │   │   ├── food_sorting.world  # 選別環境
+│   │   │   │   └── packaging.world     # 包装環境
+│   │   │   ├── scripts/          # ROSノード
+│   │   │   │   ├── control_node.py   # コントローラー
+│   │   │   │   └── simulation_node.py # シミュレーション管理
+│   │   │   ├── config/           # パラメータ
+│   │   │   └── CMakeLists.txt    # ビルド設定
+│   │   │   └── package.xml       # パッケージ情報
+│   │   └── soft_gripper_msgs/    # メッセージ定義
+├── pybullet_sim/                 # PyBullet実装
+│   ├── gripper.py                # ソフトグリッパー実装
+│   ├── rl_env.py                 # 強化学習環境
+│   ├── utils.py                  # ユーティリティ
+│   └── food_models/              # 食品モデル
+├── notebooks/                    # Jupyter/Colab
+│   ├── train_ppo.ipynb           # 強化学習トレーニング
+│   └── visualization.ipynb       # 結果可視化
+├── video/                        # 動画生成
+│   ├── record.py                 # 録画スクリプト
+│   └── editing.py                # 編集スクリプト
+├── models/                       # 保存モデル
+│   └── ppo_gripper.zip           # 学習済みPPOモデル
+├── requirements.txt              # 依存ライブラリ
+├── setup.py                      # パッケージ設定
+└── RobotSimulation1_Design.md    # 設計書
+```
+
 ## 2. 技術スタック詳細
 
 | カテゴリ | 技術 | バージョン | 用途 |
