@@ -281,7 +281,7 @@ class SoftGripper:
 - **備考**: Gazebo使用時はSDFモデルに置き換え、ROSトピック（/gripper_force）で制御。
     
 
-### 8.2 RL環境の完全実装（rl_env.py）
+### 8.2 RL環境の実装（rl_env.py）
 ```python
 # rl_env.py: Gym環境
 import gym
