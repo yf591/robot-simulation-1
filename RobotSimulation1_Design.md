@@ -40,7 +40,7 @@
 | | Gazebo | 11.x | 物理シミュレータ |
 | | PyBullet | 3.2.5 | 代替シミュレータ |
 | | MoveIt | 1.1.11 | モーションプランニング |
-| **強化学習** | Stable-Baselines3 | 1.8.0 | PPO実装 |
+| **強化学習** | Stable-Baselines3 | 2.0.0 | PPO実装 |
 | | Gym | 0.21.0 | 強化学習環境 |
 | | PyTorch | 2.0.0+ | ディープラーニング |
 | **視覚化/動画** | OpenCV | 4.7.0+ | 動画生成・編集 |
@@ -316,7 +316,7 @@ graph TD
    - **リスク**: Gazeboはローカル実行、Colabはクラウドで分離。モデルやデータの受け渡しでエラー（例: バージョン不一致）。
    - **対策**
      - モデルをGoogle Drive経由で共有。
-     - Stable-Baselines3のバージョンを統一（例: `1.8.0`）。
+     - Stable-Baselines3のバージョンを統一（例: `2.0.0`）。
      - ROS（Noetic）とColabのPython（3.8）を揃える。
    - **確率**: 低（Drive経由で統合実績あり）。
 1. **Gazeboのソフトボディ実装**
