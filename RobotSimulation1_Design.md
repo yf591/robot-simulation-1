@@ -390,198 +390,120 @@ graph TD
   - 初期テストで`.ipynb`と`.py`のデータ受け渡しを検証。
 
 
-## 11. Pythonコードのドラフト（案なので未定）
+## 11. Pythonコードの実際の構成例（2025/05/21時点）
 
-### 11.1 PyBulletコード（`gripper.py`）
-````python
-# gripper.py: ソフトグリッパーと食品モデル
-import pybullet as p
-import pybullet_data
+本リポジトリの実装は、以下の主要ファイル・クラス・関数で構成されています。
 
+### 11.1 pybullet_sim/gripper.py
+- **役割**: ソフトグリッパーの物理モデル・制御クラス
+- **主要クラス**: `SoftGripper`
+- **主なメソッド**
+    - `__init__`: gripper.obj（ソフトボディ）をPyBulletにロード
+    - `apply_action(action)`: 4本指の力を適用
+    - `get_finger_positions()`: 指のノード位置取得
+    - `get_finger_forces()`: 指の力取得（仮実装）
+    - `set_arm_joint_positions(joint_positions)`: アーム関節角度設定（仮）
+
+```python
 class SoftGripper:
-    def __init__(self):
-        p.connect(p.DIRECT)  # ROS統合時はp.SHARED_MEMORY
-        p.setAdditionalSearchPath(pybullet_data.getDataPath())
-        p.setGravity(0, 0, -9.8)
-        self.plane = p.loadURDF("plane.urdf")
-        self.conveyor = p.createMultiBody(...)  # コンベアSDF
-        self.gripper = self._create_gripper()
-        self.food = self._create_food()
+    def __init__(self, base_position=(0,0,0.2)):
+        # gripper.objをソフトボディとしてロード
+        ...
+    def apply_action(self, action):
+        # 4本指の力を適用
+        ...
+    def get_finger_positions(self):
+        # 指のノード位置を取得
+        ...
+    def get_finger_forces(self):
+        # 指の力を取得（仮）
+        ...
+    def set_arm_joint_positions(self, joint_positions):
+        # アームの関節角度を設定（仮）
+        ...
+```
 
-    def _create_gripper(self):
-        # 4本指グリッパー（BlenderでOBJ作成）
-        gripper = p.createSoftBody(
-            fileName="gripper.obj",
-            mass=0.5,
-            collisionMargin=0.001
-        )
-        p.setSoftBodyParameters(
-            gripper,
-            kLST=0.08,  # 線形剛性
-            kDP=0.05,   # ダンピング
-            kCHR=0.5    # 摩擦
-        )
-        return gripper
+### 11.2 pybullet_sim/rl_env.py
+- **役割**: 強化学習用Gym環境の定義
+- **主要クラス**: `FoodGripperEnv(gym.Env)`
+- **主なメソッド**
+    - `__init__(gui=False)`: PyBullet初期化、観測・報酬空間定義
+    - `reset()`: 環境リセット
+    - `step(action)`: アクション適用・観測・報酬・done判定
+    - `_get_obs()`: 観測ベクトル生成
+    - `render()`: GUI可視化（PyBullet GUI対応）
 
-    def _create_food(self):
-        # ランダム食品（例: リンゴ）
-        food = p.createMultiBody(
-            baseMass=0.2,
-            basePosition=[0, 0, 0.1],
-            baseCollisionShapeIndex=p.createCollisionShape(p.GEOM_SPHERE, radius=0.05)
-        )
-        p.changeDynamics(food, -1, lateralFriction=0.8)
-        return food
-
-    def apply_force(self, forces):
-        # 4本指に力適用
-        for i, node in enumerate([0, 10, 20, 30]):  # 仮ノード
-            p.addForce(self.gripper, node, forces[i*2:i*2+2])
-````
-
-- **備考**: Gazebo使用時はSDFモデルに置き換え、ROSトピック（/gripper_force）で制御。
-    
-
-### 11.2 RL環境の実装（rl_env.py）
-````python
-# rl_env.py: Gym環境
-import gym
-import numpy as np
-import pybullet as p
-from gripper import SoftGripper
-
+```python
 class FoodGripperEnv(gym.Env):
-    def __init__(self):
-        super().__init__()
-        self.action_space = gym.spaces.Box(low=-1, high=1, shape=(8,), dtype=np.float32)
-        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(12,), dtype=np.float32)
-        self.gripper = SoftGripper()
-        self.step_count = 0
-        self.max_steps = 200
-
+    def __init__(self, gui=False):
+        ...
     def reset(self):
-        self.gripper = SoftGripper()
-        self.step_count = 0
-        return self._get_obs()
-
+        ...
     def step(self, action):
-        self.gripper.apply_force(action[:4])
-        # アーム制御（仮）
-        p.setJointMotorControlArray(...)
-        p.stepSimulation()
-        self.step_count += 1
-        obs = self._get_obs()
-        reward = self._compute_reward()
-        done = self._is_done()
-        return obs, reward, done, {}
-
+        ...
     def _get_obs(self):
-        gripper_pos = p.getSoftBodyData(self.gripper.gripper, attributes=[p.SOFT_BODY_NODE_POSITION])
-        food_pos = p.getBasePositionAndOrientation(self.gripper.food)[0]
-        contact = p.getContactPoints(self.gripper.gripper, self.gripper.food)
-        contact_force = sum([c[9] for c in contact]) if contact else 0
-        return np.array([*gripper_pos[:4], *food_pos, contact_force, 0, 0, 0], dtype=np.float32)
+        ...
+    def render(self, mode="human"):
+        ...
+```
 
-    def _compute_reward(self):
-        contact = p.getContactPoints(self.gripper.gripper, self.gripper.food)
-        contact_count = len(contact)
-        contact_force = sum([c[9] for c in contact]) if contact else 0
-        food_pos = p.getBasePositionAndOrientation(self.gripper.food)[0]
-        target_pos = [1, 0, 0.1]  # コンベア目標
-        distance = np.linalg.norm(np.array(food_pos) - np.array(target_pos))
-        reward = 0
-        if contact_count >= 3 and contact_force < 10:
-            reward += 100
-        reward += 10 * (1 - distance)
-        if contact_force > 20 or food_pos[2] < 0:
-            reward -= 200
-        reward -= 0.05 * np.sum(np.abs(action))
-        if p.getContactPoints(self.gripper.gripper, self.gripper.plane):
-            reward -= 50
-        return reward
+### 11.3 pybullet_sim/utils.py
+- **役割**: 食品モデル生成・報酬計算などのユーティリティ
+- **主な関数**
+    - `load_food_model(name, base_position)`: 食品モデル（球体/楕円体/箱）生成
+    - `calculate_reward(contact_points, force, ground_contact, distance_delta)`: 報酬計算
 
-    def _is_done(self):
-        food_pos = p.getBasePositionAndOrientation(self.gripper.food)[0]
-        target_pos = [1, 0, 0.1]
-        return ( Ascendingly close food_pos[2] < 0 or self.step_count >= self.max_steps
-````
+```python
+def load_food_model(name, base_position=[0.1,0,0.1]):
+    ...
+def calculate_reward(contact_points=0, force=0, ground_contact=False, distance_delta=0):
+    ...
+```
 
-- **備考**: ROS統合時は/food_pose、/contact_forceを購読。
-    
+### 11.4 notebooks/train_ppo.ipynb
+- **役割**: 強化学習（PPO）トレーニング・モデル保存・報酬可視化
+- **主な内容**
+    - Colab/ローカル両対応のパス・依存解決
+    - `FoodGripperEnv`でPPO学習
+    - モデル保存（models/food_gripper_model）
+    - 報酬曲線の可視化
 
-### 11.3 Colabセットアップ手順（train.ipynb）
-````python
-# train.ipynb: RLトレーニング
-%%capture
-!pip install pybullet stable-baselines3 gym opencv-python
-!apt-get install -y ros-noetic-ros-base
-from google.colab import drive
-drive.mount('/content/drive')
+### 11.5 notebooks/visualization.ipynb
+- **役割**: 学習済みモデルの評価・動画生成・字幕編集・PyBullet GUI可視化
+- **主な内容**
+    - モデル読込・評価
+    - 動画再生（OpenCV）
+    - 報酬グラフ描画
+    - `video/record.py`による録画、`video/editing.py`による字幕編集
+    - PyBullet GUIでの可視化セル
 
-import gym
-from stable_baselines3 import PPO
-from rl_env import FoodGripperEnv
-import matplotlib.pyplot as plt
+### 11.6 video/record.py, editing.py
+- **役割**: シミュレーション動画の録画・字幕編集
+- **主な関数**
+    - `record_simulation(env, filename, duration, fps)`: 環境を録画しMP4出力
+    - `add_subtitle(input_path, output_path, text, pos)`: 動画に字幕挿入
 
-env = FoodGripperEnv()
-model = PPO("MlpPolicy", env, verbose=1, n_steps=2048, batch_size=2048, device="cuda")
-model.learn(total_timesteps=1_000_000, log_interval=10)
+```python
+def record_simulation(env, filename="output.mp4", duration=5, fps=30):
+    ...
+def add_subtitle(input_path, output_path, text="サンプル字幕", pos=(50, 50)):
+    ...
+```
 
-model.save("/content/drive/MyDrive/food_gripper_model")
-rewards = model.logger.get_log_dict()['rollout/ep_rew_mean']
-plt.plot(rewards)
-plt.xlabel("Episode")
-plt.ylabel("Mean Reward")
-plt.savefig("/content/drive/MyDrive/reward_curve.png")
-````
+### 11.7 ros_ws/src/soft_gripper/scripts/control_node.py, simulation_node.py
+- **役割**: ROSノード雛形（グリッパー制御・シミュレーション管理）
+- **主な内容**
+    - `/gripper_force`トピック購読・適用
+    - `/simulation_status`トピック配信
 
-- **手順**
-    1. ColabでA100 GPUを選択。
-    2. 依存ライブラリをインストール。
-    3. Google Driveをマウント。
-    4. rl_env.pyとgripper.pyを/content/にアップロード。
-    5. トレーニング実行、モデルと報酬曲線を保存。
+### 11.8 その他
+- `ros_ws/src/soft_gripper/config/params.yaml`: パラメータ雛形
+- `ros_ws/src/soft_gripper/urdf/`, `meshes/`, `worlds/`, `launch/`: モデル・環境・起動雛形
+- `requirements.txt`, `.gitignore`, `.gitkeep`等で依存・ディレクトリ管理
 
-### 11.4 動画編集スクリプト（video.py）
-````python
-# video.py: 動画生成
-import pybullet as p
-import cv2
-import numpy as np
-from rl_env import FoodGripperEnv
-from stable_baselines3 import PPO
+---
 
-def record_video(model, filename="/ros_ws/videos/food_gripper.mp4"):
-    env = FoodGripperEnv()
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    out = cv2.VideoWriter(filename, fourcc, 30.0, (1280, 720))
-    obs = env.reset()
-    for _ in range(3000):  # ~5分
-        action, _ = model.predict(obs)
-        obs, _, done, _ = env.step(action)
-        img = p.getCameraImage(1280, 720, renderer=p.ER_BULLET_HARDWARE_OPENGL)[2]
-        img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-        cv2.putText(img, "Tomato Sorting: Zero Damage", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        out.write(img)
-        if done:
-            obs = env.reset()
-    out.release()
-
-if __name__ == "__main__":
-    model = PPO.load("/content/drive/MyDrive/food_gripper_model")
-    record_video(model) 
-````
-
-- 備考: Gazebo使用時はカメラプラグイン（/camera/image_raw）で撮影。
-    
-
-## 12. 次のステップ
-
-- **優先**
-    - 食品: トマト選別（需要高）、卵包装
-    - シーン: 選別（2分）、包装（1.5分）、学習過程（1.5分。これはいらないかも?）
-        
-- **推奨**
-    - Gazeboのソフトボディ対応を事前確認。
-    - ROS BridgeでPyBullet統合をテスト。
-    - 動画を5分以内に収め、字幕で用途を強調。
+**備考**
+- すべてのコード例・クラス・関数は現状の実装（2025/05/21）に即しています。
+- 詳細なAPIやパラメータは各ファイルのdocstring・コメントを参照してください。
+- Colab/ローカル両対応のパス・依存解決、PyBullet GUI可視化、動画生成・編集まで一貫して動作します。
