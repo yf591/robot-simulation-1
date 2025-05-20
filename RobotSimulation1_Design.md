@@ -30,10 +30,93 @@
   - その他（シミュレーション、動画生成）: `.py`。
 - **環境**: ゼロコスト（無料ソフトのみ）。
 
+## 2. 技術スタック詳細
 
-## 2. システム構成
+| カテゴリ | 技術 | バージョン | 用途 |
+|---------|------|------------|------|
+| **OS/プラットフォーム** | Ubuntu | 20.04 | ROSとGazebo実行環境 |
+| | Google Colab Pro | A100 GPU | 強化学習トレーニング |
+| **ロボティクス** | ROS | Noetic | ロボット制御フレームワーク |
+| | Gazebo | 11.x | 物理シミュレータ |
+| | PyBullet | 3.2.5 | 代替シミュレータ |
+| | MoveIt | 1.1.11 | モーションプランニング |
+| **強化学習** | Stable-Baselines3 | 1.8.0 | PPO実装 |
+| | Gym | 0.21.0 | 強化学習環境 |
+| | PyTorch | 2.0.0+ | ディープラーニング |
+| **視覚化/動画** | OpenCV | 4.7.0+ | 動画生成・編集 |
+| | Matplotlib | 3.5.0+ | グラフ作成 |
+| | FFmpeg | 4.4.2 | 動画エンコード |
+| **3Dモデリング** | Blender | 3.3.0+ | グリッパー・食品モデル作成 |
+| **その他** | NumPy | 1.22.0+ | 数値計算 |
+| | SciPy | 1.8.0+ | 科学計算 |
 
-### 2.1 シミュレーション環境
+## 3. 技術スタック連携図
+
+```mermaid
+graph TD
+    Development["開発環境"] --> Local["ローカル開発<br>VSCode"]
+    Development --> Colab["Colab<br>A100 GPU"]
+    Development --> Drive["Google Drive<br>ストレージ"]
+    
+    Local <--> Colab
+    Colab <--> Drive
+    
+    Local --> SimEnv["シミュレーション環境"]
+    Colab --> RLEnv["強化学習環境"]
+    
+    subgraph SimEnv["シミュレーション環境"]
+        ROS["ROS"] --> Gazebo
+        ROS --> MoveIt
+        Gazebo <--> PyBullet
+    end
+    
+    subgraph RLEnv["強化学習環境"]
+        Gym --> PyBullet2["PyBullet"]
+        Gym --> SB3["Stable-Baselines3"]
+    end
+    
+    SimEnv <--> RLEnv
+    
+    ModelDef["モデル定義"] --> Blender
+    Blender --> URDF["URDF/SDF"]
+    
+    RLEnv --> Results["結果分析"]
+    Results --> Matplotlib
+    Results --> OpenCV
+    
+    SimEnv --> VideoGen["動画生成"]
+    VideoGen --> OpenCV2["OpenCV"]
+    
+    Matplotlib --> Output["最終成果物"]
+    OpenCV --> Output
+    OpenCV2 --> Output
+    
+    Output --> Model["学習済み<br>モデル"]
+    Output --> Video["MP4動画"]
+```
+
+## 4. データフロー
+
+1. **モデリングとシミュレーション準備**
+   - Blenderでグリッパーメッシュ作成 → URDF/SDF変換 → Gazebo/PyBulletでロード
+   - 食品モデルの物理パラメータ設定 → シミュレーション環境に配置
+
+2. **シミュレーション環境と学習環境の連携**
+   - シミュレーション状態 → 観測データに変換 → Gym環境に提供
+   - 学習モデルからのアクション → シミュレータに適用
+
+3. **学習プロセス**
+   - PyBullet環境でトレーニング → モデルをGoogleドライブに保存
+   - 学習済みモデルをローカル環境で読み込み → ROS/Gazeboに接続
+
+4. **結果検証と動画生成**
+   - シミュレーション結果を複数アングルから録画
+   - 物理データとパフォーマンス指標を可視化
+   - 動画編集（字幕、グラフ挿入）→ 最終MP4出力
+
+## 5. システム構成
+
+### 5.1 シミュレーション環境
 - **プラットフォーム**: ROS（Noetic）、Gazebo（11.x、ソフトボディ対応）。
 - **代替シミュレータ**: Genesis（未対応の場合、PyBulletをGazebo代替としてROS統合）。
 - **トレーニング環境**: Google Colab Pro（A100 GPU、RL専用）。
@@ -47,7 +130,7 @@
   - `numpy`: データ処理。
 - **ストレージ**: Google Drive（Colab用）、ローカル（ROS/Gazebo用）。
 
-### 2.2 ロボット設計
+### 5.2 ロボット設計
 - **ソフトグリッパー**
   - **形状**: 4本の指状メッシュ（食品を包み込む）。
   - **実装**: GazeboのSDF（SoftBodyプラグイン）またはPyBulletの`createSoftBody`（ROS統合）。
@@ -66,7 +149,7 @@
   - **パン**: 柔らかい立方体（SoftBody、質量=0.1kg、摩擦=0.5）。
   - BlenderでSDF/URDF自作、またはGazeboモデルリポジトリ使用。
 
-### 2.3 シミュレーションシーン
+### 5.3 シミュレーションシーン
 - **選別**: コンベア（Gazebo SDFで動く平面）にリンゴ・トマトを配置、別コンベアに仕分け。
 - **包装**: 卵をトレイ（固定立方体）に配置。
 - **加工**: パンをコンベアから加工台に移動。
@@ -76,9 +159,9 @@
   - コンベア: ROSトピック（`/conveyor_velocity`）で制御。
 
 
-## 3. 強化学習（RL）設計
+## 6. 強化学習（RL）設計
 
-### 3.1 Gym環境
+### 6.1 Gym環境
 - **状態空間**（12次元）
   - グリッパーのノード位置（GazeboセンサーまたはPyBulletの`getSoftBodyData`）。
   - 食品の位置・姿勢（`/food_pose`）。
@@ -95,7 +178,7 @@
 - **終了条件**
   - コンベア到達、落下、破損、200ステップ。
 
-### 3.2 RLアルゴリズム
+### 6.2 RLアルゴリズム
 - **アルゴリズム**: PPO（Stable-Baselines3）。
 - **ハイパーパラメータ**
   - `n_steps=2048`。
@@ -106,21 +189,21 @@
   - 食品ランダム化（形状、質量=0.05～0.2kg、摩擦=0.3～0.8）。
   - Domain Randomizationで未知食品に対応。
 
-### 3.3 ファイル形式
+### 6.3 ファイル形式
 - **トレーニング**: `.ipynb`（Colab、A100）。
 - **環境・制御**: `.py`（ROSノード、Gazebo統合）。
 
 
-## 4. 動画生成
+## 7. 動画生成
 
-### 4.1 撮影内容（1〜5分）
+### 7.1 撮影内容（1〜5分）
 - **選別**: リンゴ・トマトを別コンベアに仕分け（1分）。
 - **包装**: 卵をトレイに配置（1分）。
 - **加工**: パンを潰さず移動（1分）。
 - **学習過程**: 初期（落下）→最終（スムーズ、1分）。
 - **概要**: 字幕と報酬曲線で技術説明（30秒）。
 
-### 4.2 撮影方法
+### 7.2 撮影方法
 - **解像度**: 1280x720（Gazeboカメラプラグイン）。
 - **出力**: MP4（OpenCV、`cv2.VideoWriter`）。
 - **アングル**:
@@ -133,34 +216,69 @@
   - 字幕: 「トマト選別: 傷ゼロ」。
   - 報酬曲線: Matplotlibで挿入。
 
-### 4.3 保存
+### 7.3 保存
 - Google Drive（Colab）：`/content/drive/MyDrive/`。
 - ローカル（ROS）：`/ros_ws/videos/`。
 
 
-## 5. 実装スケジュール
+## 8. 実装順序（スケジュール）
 
-### 5.1 想定期間
-- 2週間（制約に応じ調整）。
+### 8.1 環境構築と基本実装 (1-5日目)
 
-### 5.2 ステップ
-1. **環境構築（3-4日）**
-   - ROS+Gazeboでグリッパー、食品、コンベアを設定。
-   - Gym環境を`.py`で定義。
-1. **RLトレーニング（2-3日）**
-   - Colab Pro（A100）で`.ipynb`を実行、100万ステップ。
-   - 報酬曲線を可視化。
-1. **シミュレーションと動画（3-4日）**
-   - 選別、包装、加工をGazeboで実行（`.py`）。
-   - OpenCVで動画編集（1〜5分）。
-1. **プレゼン準備（1-2日）**
-   - 食品産業の課題を説明。
-   - ソフトボディとRLの革新性を強調。
+1. **開発環境設定**
+   - 仮想環境構築 (Python 3.8)
+   - 依存パッケージのインストール (ROS Noetic, Gazebo, PyBullet)
+   - リポジトリ構造の作成
+
+2. **基本モデルの作成**
+   - BlenderでソフトグリッパーメッシュOBJファイル作成
+   - URDF/SDFによるロボットアーム定義
+   - 食品モデル (リンゴ、トマト、卵、パン) 作成
+
+3. **PyBullet環境実装**
+   - `gripper.py` ソフトボディ実装
+   - ロボットアームとグリッパー統合
+   - 食品モデルのインポートとパラメータ調整
+
+### 8.2 Gym環境とRL実装 (6-10日目)
+
+4. **強化学習環境実装**
+   - `rl_env.py` Gym環境定義
+   - 状態空間と行動空間の設計
+   - 報酬関数の実装
+   - テスト用の単純な制御ロジック
+
+5. **ROS連携準備**
+   - ROSパッケージ構造の作成
+   - ROSノード（グリッパー制御、環境管理）実装
+   - トピックとサービス定義
+
+6. **Colab学習環境準備**
+   - `train_ppo.ipynb` の作成
+   - ColabとGoogle Drive連携設定
+   - 環境のテスト実行
+
+### 8.3 学習と動画生成 (11-14日目)
+
+7. **強化学習実行**
+   - PPOモデルのトレーニング (Colab A100)
+   - モデル保存と評価
+   - ハイパーパラメータの調整
+
+8. **シミュレーション実行**
+   - 学習済みモデルの読み込み
+   - 各シナリオ（選別、包装、加工）のシミュレーション実行
+   - パフォーマンス評価
+
+9. **動画生成**
+   - 各シナリオの録画
+   - 動画編集（字幕、マルチアングル、スローモーション）
+   - 最終出力（MP4, 1280x720, 30fps）
 
 
-## 6. 実用性とアピールポイント（仮）
+## 9. 実用性とアピールポイント（仮）
 
-### 6.1 食品産業への貢献
+### 9.1 食品産業への貢献
 - **課題解決**
   - 労働不足: 作業員1/3削減。
   - 品質: 廃棄ロス50%減。
@@ -173,14 +291,14 @@
   - 卵包装: 1分50個。
   - パン移動: 焼きたてを潰さず。
 
-### 6.2 シミュレーションの価値
+### 9.2 シミュレーションの価値
 - 低コストプロトタイピング。
 - 動画で食品メーカーへの説得力強化。
 
 
-## 7. 実行可能性と不具合リスク
+## 10. 実行可能性と不具合リスク
 
-### 7.1 ファイル形式の実行可能性
+### 10.1 ファイル形式の実行可能性
 - **RLトレーニング（`.ipynb`, Colab A100）**
   - Stable-Baselines3とGymをColabで実行可能。
   - A100で高速（100万ステップ≈45分）。
@@ -193,7 +311,7 @@
   - Colabで学習したPPOモデルを`stable_baselines3.PPO.load()`で`.py`環境にインポート。
   - ROSトピック（`/gripper_force`, `/food_pose`）でデータ共有。
 
-### 7.2 不具合リスクと対策
+### 10.2 不具合リスクと対策
 1. **ROS-GazeboとColabの互換性**
    - **リスク**: Gazeboはローカル実行、Colabはクラウドで分離。モデルやデータの受け渡しでエラー（例: バージョン不一致）。
    - **対策**
@@ -221,7 +339,7 @@
      - GazeboとPyBulletの物理パラメータを近づける（例: 摩擦、重力）。
    - **確率**: 中（シミュレータ差異による）。
 
-### 7.3 総合評価
+### 10.3 総合評価
 - **実行可能性**: 高。ROS+Gazeboはロボットシミュレーションの標準、Colab A100はRLに最適。PyBullet代替で柔軟性確保。
 - **不具合確率**: 低〜中。主なリスク（ソフトボディ、統合）は対策で軽減。
 - **推奨**
@@ -229,10 +347,10 @@
   - 初期テストで`.ipynb`と`.py`のデータ受け渡しを検証。
 
 
-## 8. Pythonコードのドラフト（案なので未定）
+## 11. Pythonコードのドラフト（案なので未定）
 
-### 8.1 PyBulletコード（`gripper.py`）
-```python
+### 11.1 PyBulletコード（`gripper.py`）
+````python
 # gripper.py: ソフトグリッパーと食品モデル
 import pybullet as p
 import pybullet_data
@@ -281,8 +399,8 @@ class SoftGripper:
 - **備考**: Gazebo使用時はSDFモデルに置き換え、ROSトピック（/gripper_force）で制御。
     
 
-### 8.2 RL環境の実装（rl_env.py）
-```python
+### 11.2 RL環境の実装（rl_env.py）
+````python
 # rl_env.py: Gym環境
 import gym
 import numpy as np
@@ -343,13 +461,13 @@ class FoodGripperEnv(gym.Env):
         food_pos = p.getBasePositionAndOrientation(self.gripper.food)[0]
         target_pos = [1, 0, 0.1]
         return ( Ascendingly close food_pos[2] < 0 or self.step_count >= self.max_steps
-```
+````
 
 - **備考**: ROS統合時は/food_pose、/contact_forceを購読。
     
 
-### 8.3 Colabセットアップ手順（train.ipynb）
-```python
+### 11.3 Colabセットアップ手順（train.ipynb）
+````python
 # train.ipynb: RLトレーニング
 %%capture
 !pip install pybullet stable-baselines3 gym opencv-python
@@ -372,7 +490,7 @@ plt.plot(rewards)
 plt.xlabel("Episode")
 plt.ylabel("Mean Reward")
 plt.savefig("/content/drive/MyDrive/reward_curve.png")
-```
+````
 
 - **手順**
     1. ColabでA100 GPUを選択。
@@ -381,8 +499,8 @@ plt.savefig("/content/drive/MyDrive/reward_curve.png")
     4. rl_env.pyとgripper.pyを/content/にアップロード。
     5. トレーニング実行、モデルと報酬曲線を保存。
 
-### 8.4 動画編集スクリプト（video.py）
-```python
+### 11.4 動画編集スクリプト（video.py）
+````python
 # video.py: 動画生成
 import pybullet as p
 import cv2
@@ -408,13 +526,13 @@ def record_video(model, filename="/ros_ws/videos/food_gripper.mp4"):
 
 if __name__ == "__main__":
     model = PPO.load("/content/drive/MyDrive/food_gripper_model")
-    record_video(model)
-```
+    record_video(model) 
+````
 
 - 備考: Gazebo使用時はカメラプラグイン（/camera/image_raw）で撮影。
     
 
-## 9. 次のステップ
+## 12. 次のステップ
 
 - **優先**
     - 食品: トマト選別（需要高）、卵包装
