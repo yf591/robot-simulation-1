@@ -1,0 +1,21 @@
+# パラメータ雛形
+soft_gripper:
+  stiffness: 0.08
+  damping: 0.05
+  friction: 0.5
+arm:
+  dof: 3
+  max_velocity: 0.5
+food:
+  apple:
+    mass: 0.2
+    friction: 0.8
+  tomato:
+    mass: 0.15
+    friction: 0.6
+  egg:
+    mass: 0.05
+    friction: 0.3
+  bread:
+    mass: 0.1
+    friction: 0.5

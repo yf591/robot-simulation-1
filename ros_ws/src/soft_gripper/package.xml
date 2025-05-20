@@ -1,0 +1,8 @@
+<!-- package.xml 雛形 -->
+<package format="2">
+  <name>soft_gripper</name>
+  <version>0.0.1</version>
+  <description>Soft gripper ROS package</description>
+  <maintainer email="user@example.com">User</maintainer>
+  <license>MIT</license>
+</package>
