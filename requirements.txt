@@ -1,0 +1,38 @@
+# RobotSimulation1のPython依存パッケージ
+# Python 3.8 推奨（ROS Noeticとの互換性）
+
+# シミュレータ
+pybullet>=3.2.5
+
+# 強化学習
+stable-baselines3>=2.0.0
+gymnasium>=0.28.1  # gym の後継
+torch>=2.0.0
+
+# 視覚化/動画
+opencv-python>=4.7.0
+matplotlib>=3.5.0
+
+# 科学計算
+numpy>=1.22.0
+scipy>=1.8.0
+
+# ROS連携（Pythonラッパー）
+rospkg
+catkin_pkg
+empy  # ROSメッセージ生成に必要
+
+# ユーティリティ
+tqdm  # 進捗バー
+pyyaml  # 設定ファイル
+
+# パッケージ管理
+uv  # 高速パッケージインストーラ
+
+# ROS関連（システムインストール、参考）
+# sudo apt install ros-noetic-desktop-full
+# sudo apt install ros-noetic-gazebo-ros-pkgs
+# sudo apt install ros-noetic-moveit
+
+# FFmpeg（システムインストール、参考）
+# sudo apt install ffmpeg
